@@ -106,6 +106,12 @@ async function loadGroups() {
     }
 }
 
+// 이름 마스킹 (두 번째 글자를 *로)
+function maskName(name) {
+    if (!name || name.length < 2) return name;
+    return name.charAt(0) + '*' + name.substring(2);
+}
+
 // 모임 카드 생성
 function createGroupCard(group) {
     const formatDate = (date) => {
@@ -161,7 +167,7 @@ function createGroupCard(group) {
                         <option value="">리더 없음</option>
                         ${(group.members || []).map(member => `
                             <option value="${escapeHtml(member.name)}" ${group.leader_name === member.name ? 'selected' : ''}>
-                                ${escapeHtml(member.name)}
+                                ${escapeHtml(maskName(member.name))}
                             </option>
                         `).join('')}
                     </select>
