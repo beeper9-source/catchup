@@ -81,7 +81,7 @@ async function loadGroups() {
         document.querySelectorAll('.edit-group-info-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const groupId = e.target.closest('.group-card').dataset.groupId;
-                toggleGroupInfoEdit(groupId);
+                showEmployeeIdModal(groupId);
             });
         });
 
@@ -208,6 +208,74 @@ function createGroupCard(group) {
             </div>
         </div>
     `;
+}
+
+// 사번 입력 모달 표시 (모임 정보 수정용)
+function showEmployeeIdModal(groupId) {
+    const modal = document.getElementById('employeeIdModal');
+    const employeeIdInput = document.getElementById('employeeIdInput');
+    const employeeIdForm = document.getElementById('employeeIdForm');
+    
+    // 기존 이벤트 리스너 제거
+    const newForm = employeeIdForm.cloneNode(true);
+    employeeIdForm.parentNode.replaceChild(newForm, employeeIdForm);
+    
+    // 모달에 그룹 ID 저장
+    modal.dataset.groupId = groupId;
+    
+    // 입력 필드 초기화
+    document.getElementById('employeeIdInput').value = '';
+    
+    // 모달 표시
+    modal.style.display = 'flex';
+    document.getElementById('employeeIdInput').focus();
+    
+    // 폼 제출 이벤트
+    document.getElementById('employeeIdForm').addEventListener('submit', handleEmployeeIdSubmit);
+    
+    // 취소 버튼 이벤트
+    document.getElementById('cancelEmployeeIdBtn').addEventListener('click', () => {
+        hideEmployeeIdModal();
+    });
+    
+    // 모달 외부 클릭 시 닫기
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            hideEmployeeIdModal();
+        }
+    });
+}
+
+// 사번 입력 모달 숨기기
+function hideEmployeeIdModal() {
+    const modal = document.getElementById('employeeIdModal');
+    modal.style.display = 'none';
+}
+
+// 사번 검증 및 수정 모드 진입
+async function handleEmployeeIdSubmit(e) {
+    e.preventDefault();
+    
+    const modal = document.getElementById('employeeIdModal');
+    const groupId = modal.dataset.groupId;
+    const inputEmployeeId = document.getElementById('employeeIdInput').value.trim();
+    
+    if (!inputEmployeeId) {
+        alert('사번을 입력해주세요.');
+        return;
+    }
+    
+    // 사번 검증 (김구의 사번: 22331)
+    if (inputEmployeeId !== '22331') {
+        alert('사번이 일치하지 않습니다. 다시 입력해주세요.');
+        document.getElementById('employeeIdInput').value = '';
+        document.getElementById('employeeIdInput').focus();
+        return;
+    }
+    
+    // 검증 통과 - 모달 닫고 수정 모드로 진입
+    hideEmployeeIdModal();
+    toggleGroupInfoEdit(groupId);
 }
 
 // 모임 정보 수정 모드 토글
