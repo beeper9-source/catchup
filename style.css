@@ -150,6 +150,36 @@ section h2 {
     border-bottom: 1px solid #e0e0e0;
 }
 
+.update-header-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.update-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.edit-update-btn,
+.delete-update-btn {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.edit-update-btn:hover {
+    background-color: #e3f2fd;
+}
+
+.delete-update-btn:hover {
+    background-color: #ffebee;
+}
+
 .update-name {
     font-size: 1.3rem;
     font-weight: 700;
@@ -164,6 +194,80 @@ section h2 {
 .update-content {
     display: grid;
     gap: 15px;
+}
+
+.update-content-display {
+    display: block;
+}
+
+.update-edit-form {
+    margin-top: 15px;
+}
+
+.update-edit-form .form-group {
+    margin-bottom: 15px;
+}
+
+.update-edit-form .form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #555;
+    font-size: 0.9rem;
+}
+
+.update-edit-form .form-group input,
+.update-edit-form .form-group select,
+.update-edit-form .form-group textarea {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-family: inherit;
+}
+
+.update-edit-form .form-group input:focus,
+.update-edit-form .form-group select:focus,
+.update-edit-form .form-group textarea:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.edit-form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.save-update-btn,
+.cancel-edit-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.save-update-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.save-update-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+.cancel-edit-btn {
+    background: #e0e0e0;
+    color: #666;
+}
+
+.cancel-edit-btn:hover {
+    background: #d0d0d0;
 }
 
 .update-item {
@@ -219,6 +323,109 @@ section h2 {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 8px;
+}
+
+.comment-header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.comment-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.edit-comment-btn,
+.delete-comment-btn {
+    background: none;
+    border: none;
+    font-size: 0.9rem;
+    cursor: pointer;
+    padding: 3px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.edit-comment-btn:hover {
+    background-color: #e3f2fd;
+}
+
+.delete-comment-btn:hover {
+    background-color: #ffebee;
+}
+
+.comment-content-display {
+    display: block;
+}
+
+.comment-edit-form {
+    margin-top: 10px;
+}
+
+.comment-edit-row {
+    display: grid;
+    grid-template-columns: 120px 1fr auto;
+    gap: 10px;
+    align-items: start;
+}
+
+.comment-edit-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.save-comment-btn,
+.cancel-comment-edit-btn {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.save-comment-btn {
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    color: white;
+}
+
+.save-comment-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 3px 10px rgba(118, 75, 162, 0.4);
+}
+
+.cancel-comment-edit-btn {
+    background: #e0e0e0;
+    color: #666;
+}
+
+.cancel-comment-edit-btn:hover {
+    background: #d0d0d0;
+}
+
+.edit-commenter-name,
+.edit-comment-content {
+    padding: 8px;
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    transition: border-color 0.3s ease;
+}
+
+.edit-commenter-name:focus,
+.edit-comment-content:focus {
+    outline: none;
+    border-color: #764ba2;
+}
+
+.edit-comment-content {
+    resize: vertical;
+    min-height: 50px;
 }
 
 .comment-author {
@@ -346,5 +553,19 @@ section h2 {
 
     .comment-submit-btn {
         width: 100%;
+    }
+
+    .comment-edit-row {
+        grid-template-columns: 1fr;
+    }
+
+    .comment-edit-actions {
+        flex-direction: row;
+        width: 100%;
+    }
+
+    .save-comment-btn,
+    .cancel-comment-edit-btn {
+        flex: 1;
     }
 }
