@@ -53,14 +53,7 @@ async function loadGroups() {
             return;
         }
 
-        groupsList.innerHTML = data.map(group => `
-            <div class="group-card" data-group-id="${group.id}">
-                <div class="group-name">${escapeHtml(group.name)}</div>
-                <button class="select-group-btn" data-group-id="${group.id}" data-group-name="${escapeHtml(group.name)}">
-                    선택
-                </button>
-            </div>
-        `).join('');
+        groupsList.innerHTML = data.map(group => createGroupCard(group)).join('');
 
         // 모임 선택 버튼 이벤트 리스너
         document.querySelectorAll('.select-group-btn').forEach(btn => {
@@ -70,9 +63,165 @@ async function loadGroups() {
                 selectGroup(groupId, groupName);
             });
         });
+
+        // 모임 정보 수정 버튼 이벤트 리스너
+        document.querySelectorAll('.edit-group-info-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const groupId = e.target.closest('.group-card').dataset.groupId;
+                toggleGroupInfoEdit(groupId);
+            });
+        });
+
+        // 모임 정보 저장 버튼 이벤트 리스너
+        document.querySelectorAll('.save-group-info-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const groupId = e.target.closest('.group-card').dataset.groupId;
+                await saveGroupInfo(groupId);
+            });
+        });
+
+        // 모임 정보 취소 버튼 이벤트 리스너
+        document.querySelectorAll('.cancel-group-info-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const groupId = e.target.closest('.group-card').dataset.groupId;
+                toggleGroupInfoEdit(groupId);
+            });
+        });
     } catch (error) {
         console.error('Error:', error);
         groupsList.innerHTML = '<p class="empty-state">모임을 불러오는 중 오류가 발생했습니다.</p>';
+    }
+}
+
+// 모임 카드 생성
+function createGroupCard(group) {
+    const formatDate = (date) => {
+        if (!date) return '미정';
+        return new Date(date).toLocaleDateString('ko-KR', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    };
+
+    const formatTime = (time) => {
+        if (!time) return '';
+        return time.substring(0, 5); // HH:MM 형식
+    };
+
+    const currentMeetingInfo = group.current_meeting_date 
+        ? `${formatDate(group.current_meeting_date)} ${formatTime(group.current_meeting_time) || ''} ${group.current_meeting_location || ''}`.trim()
+        : '미정';
+
+    const nextMeetingInfo = group.next_meeting_date 
+        ? `${formatDate(group.next_meeting_date)} ${formatTime(group.next_meeting_time) || ''} ${group.next_meeting_location || ''}`.trim()
+        : '미정';
+
+    return `
+        <div class="group-card" data-group-id="${group.id}">
+            <div class="group-card-header">
+                <div class="group-name">${escapeHtml(group.name)}</div>
+                <div class="group-card-actions">
+                    <button class="edit-group-info-btn" data-group-id="${group.id}" title="모임 정보 수정">⚙️</button>
+                    <button class="select-group-btn" data-group-id="${group.id}" data-group-name="${escapeHtml(group.name)}">
+                        선택
+                    </button>
+                </div>
+            </div>
+            
+            <div class="group-info-display" data-group-id="${group.id}">
+                <div class="group-info-item">
+                    <span class="group-info-label">이번 모임:</span>
+                    <span class="group-info-value">${currentMeetingInfo}</span>
+                </div>
+                <div class="group-info-item">
+                    <span class="group-info-label">다음 모임:</span>
+                    <span class="group-info-value">${nextMeetingInfo}</span>
+                </div>
+            </div>
+
+            <div class="group-info-edit" data-group-id="${group.id}" style="display: none;">
+                <h4>이번 모임 일정</h4>
+                <div class="form-group">
+                    <label>날짜</label>
+                    <input type="date" class="edit-current-meeting-date" value="${group.current_meeting_date || ''}">
+                </div>
+                <div class="form-group">
+                    <label>시간</label>
+                    <input type="time" class="edit-current-meeting-time" value="${group.current_meeting_time || ''}">
+                </div>
+                <div class="form-group">
+                    <label>장소</label>
+                    <input type="text" class="edit-current-meeting-location" value="${escapeHtml(group.current_meeting_location || '')}" placeholder="장소를 입력하세요">
+                </div>
+
+                <h4>다음 모임 일정</h4>
+                <div class="form-group">
+                    <label>날짜</label>
+                    <input type="date" class="edit-next-meeting-date" value="${group.next_meeting_date || ''}">
+                </div>
+                <div class="form-group">
+                    <label>시간</label>
+                    <input type="time" class="edit-next-meeting-time" value="${group.next_meeting_time || ''}">
+                </div>
+                <div class="form-group">
+                    <label>장소</label>
+                    <input type="text" class="edit-next-meeting-location" value="${escapeHtml(group.next_meeting_location || '')}" placeholder="장소를 입력하세요">
+                </div>
+
+                <div class="group-info-edit-actions">
+                    <button type="button" class="save-group-info-btn">저장</button>
+                    <button type="button" class="cancel-group-info-btn">취소</button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// 모임 정보 수정 모드 토글
+function toggleGroupInfoEdit(groupId) {
+    const card = document.querySelector(`.group-card[data-group-id="${groupId}"]`);
+    const display = card.querySelector('.group-info-display');
+    const edit = card.querySelector('.group-info-edit');
+
+    if (edit.style.display === 'none') {
+        display.style.display = 'none';
+        edit.style.display = 'block';
+    } else {
+        display.style.display = 'block';
+        edit.style.display = 'none';
+    }
+}
+
+// 모임 정보 저장
+async function saveGroupInfo(groupId) {
+    const card = document.querySelector(`.group-card[data-group-id="${groupId}"]`);
+    const editForm = card.querySelector('.group-info-edit');
+
+    const updateData = {
+        current_meeting_date: editForm.querySelector('.edit-current-meeting-date').value || null,
+        current_meeting_time: editForm.querySelector('.edit-current-meeting-time').value || null,
+        current_meeting_location: editForm.querySelector('.edit-current-meeting-location').value.trim() || null,
+        next_meeting_date: editForm.querySelector('.edit-next-meeting-date').value || null,
+        next_meeting_time: editForm.querySelector('.edit-next-meeting-time').value || null,
+        next_meeting_location: editForm.querySelector('.edit-next-meeting-location').value.trim() || null
+    };
+
+    try {
+        const { error } = await supabase
+            .from('cat_groups')
+            .update(updateData)
+            .eq('id', groupId);
+
+        if (error) {
+            throw error;
+        }
+
+        alert('모임 정보가 저장되었습니다!');
+        await loadGroups();
+    } catch (error) {
+        console.error('Error:', error);
+        alert('모임 정보 저장 중 오류가 발생했습니다: ' + error.message);
     }
 }
 
