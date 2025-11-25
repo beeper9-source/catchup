@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catch up - 친구들 근황 공유</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💬 Catch up</h1>
+            <p class="subtitle">친구들과 만나기 전, 요즘 어떻게 지내는지 근황을 공유해보세요</p>
+        </header>
+
+        <main>
+            <!-- 근황 작성 폼 -->
+            <section class="form-section">
+                <h2>근황 작성하기</h2>
+                <form id="updateForm">
+                    <div class="form-group">
+                        <label for="name">이름 *</label>
+                        <input type="text" id="name" name="name" required placeholder="이름을 입력하세요">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="date">날짜 *</label>
+                        <input type="date" id="date" name="date" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="work_life">회사생활</label>
+                        <textarea id="work_life" name="work_life" rows="3" placeholder="회사에서의 근황을 공유해주세요"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="hobby_life">취미생활</label>
+                        <textarea id="hobby_life" name="hobby_life" rows="3" placeholder="최근 즐기고 있는 취미나 활동을 알려주세요"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="health_care">건강관리</label>
+                        <textarea id="health_care" name="health_care" rows="3" placeholder="건강 관련 근황을 공유해주세요"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="family_news">가족들 소식</label>
+                        <textarea id="family_news" name="family_news" rows="3" placeholder="가족들의 소식을 알려주세요"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="recent_interests">최근 관심사</label>
+                        <textarea id="recent_interests" name="recent_interests" rows="3" placeholder="요즘 관심 있는 것들을 공유해주세요"></textarea>
+                    </div>
+
+                    <button type="submit" class="submit-btn">근황 공유하기</button>
+                </form>
+            </section>
+
+            <!-- 근황 목록 -->
+            <section class="updates-section">
+                <h2>친구들의 근황</h2>
+                <div id="updatesList" class="updates-list">
+                    <p class="loading">로딩 중...</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
