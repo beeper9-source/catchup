@@ -167,6 +167,12 @@ async function initializeMainPage() {
     if (addMemberForm) {
         addMemberForm.addEventListener('submit', handleAddMember);
     }
+
+    // 이미지 미리보기 기능
+    const imagesInput = document.getElementById('images');
+    if (imagesInput) {
+        imagesInput.addEventListener('change', handleImagePreview);
+    }
 }
 
 // 모임 멤버 목록 불러오기
@@ -361,6 +367,111 @@ async function deleteMember(memberId) {
     }
 }
 
+// 이미지 미리보기 처리
+function handleImagePreview(e) {
+    const preview = document.getElementById('imagePreview');
+    preview.innerHTML = '';
+    
+    const files = e.target.files;
+    if (files.length === 0) return;
+
+    Array.from(files).forEach((file, index) => {
+        if (!file.type.startsWith('image/')) {
+            alert(`${file.name}은(는) 이미지 파일이 아닙니다.`);
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const imgContainer = document.createElement('div');
+            imgContainer.className = 'preview-image-item';
+            imgContainer.dataset.index = index;
+            
+            const img = document.createElement('img');
+            img.src = e.target.result;
+            img.className = 'preview-image';
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'remove-image-btn';
+            removeBtn.textContent = '×';
+            removeBtn.onclick = () => removeImagePreview(index);
+            
+            imgContainer.appendChild(img);
+            imgContainer.appendChild(removeBtn);
+            preview.appendChild(imgContainer);
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+// 이미지 미리보기 제거
+function removeImagePreview(index) {
+    const input = document.getElementById('images');
+    const dt = new DataTransfer();
+    const files = Array.from(input.files);
+    
+    files.forEach((file, i) => {
+        if (i !== index) {
+            dt.items.add(file);
+        }
+    });
+    
+    input.files = dt.files;
+    
+    // 미리보기 다시 생성
+    const event = new Event('change');
+    input.dispatchEvent(event);
+}
+
+// 이미지 업로드
+async function uploadImages(files) {
+    if (!files || files.length === 0) return [];
+
+    const imageUrls = [];
+    const uploadPromises = [];
+
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${currentGroupId}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+        
+        const uploadPromise = supabase.storage
+            .from('catchup-images')
+            .upload(fileName, file, {
+                cacheControl: '3600',
+                upsert: false
+            })
+            .then(async ({ data, error }) => {
+                if (error) {
+                    console.error('Upload error:', error);
+                    // 버킷이 없는 경우 더 명확한 에러 메시지
+                    if (error.message && error.message.includes('Bucket not found')) {
+                        throw new Error('Storage 버킷이 생성되지 않았습니다. Supabase 대시보드에서 "catchup-images" 버킷을 생성해주세요.');
+                    }
+                    throw error;
+                }
+                
+                // 공개 URL 가져오기
+                const { data: urlData } = supabase.storage
+                    .from('catchup-images')
+                    .getPublicUrl(data.path);
+                
+                return urlData.publicUrl;
+            });
+
+        uploadPromises.push(uploadPromise);
+    }
+
+    try {
+        const urls = await Promise.all(uploadPromises);
+        return urls;
+    } catch (error) {
+        console.error('Error uploading images:', error);
+        throw error;
+    }
+}
+
 // 폼 제출 처리
 async function handleSubmit(e) {
     e.preventDefault();
@@ -368,6 +479,31 @@ async function handleSubmit(e) {
     if (!currentGroupId) {
         alert('모임을 선택해주세요.');
         return;
+    }
+
+    // 이미지 업로드
+    const imagesInput = document.getElementById('images');
+    let imageUrls = [];
+    
+    if (imagesInput && imagesInput.files.length > 0) {
+        try {
+            imageUrls = await uploadImages(imagesInput.files);
+        } catch (error) {
+            let errorMessage = '이미지 업로드 중 오류가 발생했습니다: ' + error.message;
+            
+            // 버킷이 없는 경우 상세 안내
+            if (error.message && error.message.includes('버킷이 생성되지 않았습니다')) {
+                errorMessage += '\n\nSupabase 대시보드에서 다음 단계를 따라주세요:\n';
+                errorMessage += '1. Storage 메뉴로 이동\n';
+                errorMessage += '2. "New bucket" 클릭\n';
+                errorMessage += '3. 버킷 이름: catchup-images\n';
+                errorMessage += '4. Public bucket 옵션 활성화\n';
+                errorMessage += '5. Create bucket 클릭';
+            }
+            
+            alert(errorMessage);
+            return;
+        }
     }
 
     const formData = {
@@ -378,7 +514,8 @@ async function handleSubmit(e) {
         hobby_life: document.getElementById('hobby_life').value.trim() || null,
         health_care: document.getElementById('health_care').value.trim() || null,
         family_news: document.getElementById('family_news').value.trim() || null,
-        recent_interests: document.getElementById('recent_interests').value.trim() || null
+        recent_interests: document.getElementById('recent_interests').value.trim() || null,
+        image_urls: imageUrls.length > 0 ? imageUrls : null
     };
 
     // 이름과 날짜는 필수
@@ -403,6 +540,7 @@ async function handleSubmit(e) {
         // 폼 초기화
         document.getElementById('updateForm').reset();
         document.getElementById('date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('imagePreview').innerHTML = '';
 
         // 목록 새로고침
         await loadUpdates();
@@ -494,6 +632,29 @@ function createUpdateCard(update) {
         `).join('')
         : '<div class="update-item"><div class="update-item-value">작성된 내용이 없습니다.</div></div>';
 
+    // 이미지 표시 HTML
+    let imagesHtml = '';
+    if (update.image_urls && update.image_urls.length > 0) {
+        imagesHtml = `
+            <div class="update-images">
+                ${update.image_urls.map(url => `
+                    <div class="update-image-item">
+                        <img src="${escapeHtml(url)}" alt="첨부 이미지" class="update-image" onclick="openImageModal('${escapeHtml(url)}')">
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    } else if (update.image_url) {
+        // 이전 버전 호환성 (단일 이미지)
+        imagesHtml = `
+            <div class="update-images">
+                <div class="update-image-item">
+                    <img src="${escapeHtml(update.image_url)}" alt="첨부 이미지" class="update-image" onclick="openImageModal('${escapeHtml(update.image_url)}')">
+                </div>
+            </div>
+        `;
+    }
+
     // 댓글 목록 HTML
     const commentsHtml = (update.comments || []).length > 0
         ? update.comments.map(comment => `
@@ -547,6 +708,7 @@ function createUpdateCard(update) {
             </div>
             <div class="update-content-display" data-update-id="${update.id}">
                 ${contentHtml}
+                ${imagesHtml}
             </div>
             <div class="update-edit-form" data-update-id="${update.id}" style="display: none;">
                 <form class="edit-update-form">
@@ -603,6 +765,28 @@ function createUpdateCard(update) {
             </div>
         </div>
     `;
+}
+
+// 이미지 모달 열기
+function openImageModal(imageUrl) {
+    const modal = document.createElement('div');
+    modal.className = 'image-modal';
+    modal.innerHTML = `
+        <div class="image-modal-content">
+            <span class="image-modal-close">&times;</span>
+            <img src="${escapeHtml(imageUrl)}" alt="확대 이미지" class="image-modal-image">
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    const closeBtn = modal.querySelector('.image-modal-close');
+    closeBtn.onclick = () => modal.remove();
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    };
 }
 
 // XSS 방지를 위한 HTML 이스케이프

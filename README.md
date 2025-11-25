@@ -8,6 +8,9 @@
 - 📋 친구들의 근황 목록 조회
 - 📅 날짜별 근황 관리
 - 💬 회사생활, 취미생활, 건강관리, 가족 소식, 최근 관심사 등 다양한 항목 공유
+- 📷 사진 첨부 기능 (여러 장 첨부 가능)
+- 👥 모임별 멤버 관리
+- 💬 댓글 작성 및 수정/삭제
 
 ## 조사 항목
 
@@ -41,6 +44,18 @@ catchup/
 const SUPABASE_URL = 'YOUR_SUPABASE_URL';
 const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
 ```
+
+#### Storage 버킷 생성 (이미지 업로드 기능 사용 시)
+
+1. Supabase 대시보드에서 **Storage** 메뉴로 이동
+2. **New bucket** 버튼 클릭
+3. 버킷 이름: `catchup-images`
+4. **Public bucket** 옵션 활성화 (이미지 공개 접근을 위해)
+5. **Create bucket** 클릭
+6. 버킷 생성 후, **Policies** 탭에서 다음 정책 추가:
+   - **Policy name**: Allow public uploads
+   - **Allowed operation**: INSERT
+   - **Policy definition**: `true` (또는 필요한 경우 인증된 사용자만 허용)
 
 ### 3. 실행 방법
 
