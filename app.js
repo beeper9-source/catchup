@@ -77,7 +77,23 @@ async function loadUpdates() {
             return;
         }
 
-        updatesList.innerHTML = data.map(update => createUpdateCard(update)).join('');
+        // 각 근황에 대한 댓글도 함께 불러오기
+        const updatesWithComments = await Promise.all(
+            data.map(async (update) => {
+                const { data: comments } = await supabase
+                    .from('cat_comments')
+                    .select('*')
+                    .eq('update_id', update.id)
+                    .order('created_at', { ascending: true });
+                
+                return { ...update, comments: comments || [] };
+            })
+        );
+
+        updatesList.innerHTML = updatesWithComments.map(update => createUpdateCard(update)).join('');
+        
+        // 댓글 폼 이벤트 리스너 추가
+        attachCommentListeners();
     } catch (error) {
         console.error('Error:', error);
         updatesList.innerHTML = '<p class="empty-state">근황을 불러오는 중 오류가 발생했습니다.</p>';
@@ -109,14 +125,47 @@ function createUpdateCard(update) {
         `).join('')
         : '<div class="update-item"><div class="update-item-value">작성된 내용이 없습니다.</div></div>';
 
+    // 댓글 목록 HTML
+    const commentsHtml = (update.comments || []).length > 0
+        ? update.comments.map(comment => `
+            <div class="comment-item">
+                <div class="comment-header">
+                    <span class="comment-author">${escapeHtml(comment.commenter_name)}</span>
+                    <span class="comment-date">${formatCommentDate(comment.created_at)}</span>
+                </div>
+                <div class="comment-content">${escapeHtml(comment.content)}</div>
+            </div>
+        `).join('')
+        : '<p class="no-comments">아직 댓글이 없습니다.</p>';
+
     return `
-        <div class="update-card">
+        <div class="update-card" data-update-id="${update.id}">
             <div class="update-header">
                 <div class="update-name">${escapeHtml(update.name)}</div>
                 <div class="update-date">${date}</div>
             </div>
             <div class="update-content">
                 ${contentHtml}
+            </div>
+            <div class="comments-section">
+                <h3 class="comments-title">댓글 (${(update.comments || []).length})</h3>
+                <div class="comments-list">
+                    ${commentsHtml}
+                </div>
+                <form class="comment-form" data-update-id="${update.id}">
+                    <div class="comment-form-row">
+                        <select class="commenter-name" required>
+                            <option value="">이름 선택</option>
+                            <option value="김구">김구</option>
+                            <option value="조원일">조원일</option>
+                            <option value="이병근">이병근</option>
+                            <option value="김경남">김경남</option>
+                            <option value="김재환">김재환</option>
+                        </select>
+                        <textarea class="comment-content-input" rows="2" placeholder="댓글을 입력하세요..." required></textarea>
+                        <button type="submit" class="comment-submit-btn">댓글 작성</button>
+                    </div>
+                </form>
             </div>
         </div>
     `;
@@ -127,4 +176,74 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// 댓글 날짜 포맷팅
+function formatCommentDate(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now - date;
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+
+    if (minutes < 1) return '방금 전';
+    if (minutes < 60) return `${minutes}분 전`;
+    if (hours < 24) return `${hours}시간 전`;
+    if (days < 7) return `${days}일 전`;
+    
+    return date.toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+// 댓글 폼 이벤트 리스너 추가
+function attachCommentListeners() {
+    document.querySelectorAll('.comment-form').forEach(form => {
+        form.addEventListener('submit', handleCommentSubmit);
+    });
+}
+
+// 댓글 제출 처리
+async function handleCommentSubmit(e) {
+    e.preventDefault();
+    
+    const form = e.target;
+    const updateId = form.dataset.updateId;
+    const commenterName = form.querySelector('.commenter-name').value.trim();
+    const content = form.querySelector('.comment-content-input').value.trim();
+
+    if (!commenterName || !content) {
+        alert('이름과 댓글 내용을 모두 입력해주세요.');
+        return;
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from('cat_comments')
+            .insert([{
+                update_id: updateId,
+                commenter_name: commenterName,
+                content: content
+            }])
+            .select();
+
+        if (error) {
+            throw error;
+        }
+
+        // 댓글 입력 필드 초기화
+        form.querySelector('.comment-content-input').value = '';
+        form.querySelector('.commenter-name').value = '';
+
+        // 근황 목록 새로고침
+        await loadUpdates();
+    } catch (error) {
+        console.error('Error:', error);
+        alert('댓글 작성 중 오류가 발생했습니다: ' + error.message);
+    }
 }
