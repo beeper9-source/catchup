@@ -53,7 +53,20 @@ async function loadGroups() {
             return;
         }
 
-        groupsList.innerHTML = data.map(group => createGroupCard(group)).join('');
+        // 각 모임의 멤버 목록도 함께 불러오기
+        const groupsWithMembers = await Promise.all(
+            data.map(async (group) => {
+                const { data: members } = await supabase
+                    .from('cat_group_members')
+                    .select('*')
+                    .eq('group_id', group.id)
+                    .order('name', { ascending: true });
+                
+                return { ...group, members: members || [] };
+            })
+        );
+
+        groupsList.innerHTML = groupsWithMembers.map(group => createGroupCard(group)).join('');
 
         // 모임 선택 버튼 이벤트 리스너
         document.querySelectorAll('.select-group-btn').forEach(btn => {
@@ -141,6 +154,19 @@ function createGroupCard(group) {
             </div>
 
             <div class="group-info-edit" data-group-id="${group.id}" style="display: none;">
+                <h4>리더</h4>
+                <div class="form-group">
+                    <label>리더 선택</label>
+                    <select class="edit-leader-name">
+                        <option value="">리더 없음</option>
+                        ${(group.members || []).map(member => `
+                            <option value="${escapeHtml(member.name)}" ${group.leader_name === member.name ? 'selected' : ''}>
+                                ${escapeHtml(member.name)}
+                            </option>
+                        `).join('')}
+                    </select>
+                </div>
+
                 <h4>이번 모임 일정</h4>
                 <div class="form-group">
                     <label>날짜</label>
@@ -199,6 +225,7 @@ async function saveGroupInfo(groupId) {
     const editForm = card.querySelector('.group-info-edit');
 
     const updateData = {
+        leader_name: editForm.querySelector('.edit-leader-name').value.trim() || null,
         current_meeting_date: editForm.querySelector('.edit-current-meeting-date').value || null,
         current_meeting_time: editForm.querySelector('.edit-current-meeting-time').value || null,
         current_meeting_location: editForm.querySelector('.edit-current-meeting-location').value.trim() || null,
@@ -226,7 +253,103 @@ async function saveGroupInfo(groupId) {
 }
 
 // 모임 선택
-function selectGroup(groupId, groupName) {
+async function selectGroup(groupId, groupName) {
+    // 모임의 리더 정보 확인
+    const { data: groupData, error } = await supabase
+        .from('cat_groups')
+        .select('leader_name')
+        .eq('id', groupId)
+        .single();
+
+    if (error) {
+        console.error('Error:', error);
+        alert('모임 정보를 불러오는 중 오류가 발생했습니다.');
+        return;
+    }
+
+    // 리더가 설정되어 있으면 리더 이름 입력 모달 표시
+    if (groupData.leader_name) {
+        showLeaderModal(groupId, groupName, groupData.leader_name);
+    } else {
+        // 리더가 없으면 바로 입장
+        enterGroup(groupId, groupName);
+    }
+}
+
+// 리더 이름 입력 모달 표시
+function showLeaderModal(groupId, groupName, correctLeaderName) {
+    const modal = document.getElementById('leaderModal');
+    const leaderInput = document.getElementById('leaderNameInput');
+    const leaderForm = document.getElementById('leaderForm');
+    
+    // 기존 이벤트 리스너 제거
+    const newForm = leaderForm.cloneNode(true);
+    leaderForm.parentNode.replaceChild(newForm, leaderForm);
+    
+    // 모달에 그룹 정보 저장
+    modal.dataset.groupId = groupId;
+    modal.dataset.groupName = groupName;
+    modal.dataset.correctLeaderName = correctLeaderName;
+    
+    // 입력 필드 초기화
+    document.getElementById('leaderNameInput').value = '';
+    
+    // 모달 표시
+    modal.style.display = 'flex';
+    document.getElementById('leaderNameInput').focus();
+    
+    // 폼 제출 이벤트
+    document.getElementById('leaderForm').addEventListener('submit', handleLeaderSubmit);
+    
+    // 취소 버튼 이벤트
+    document.getElementById('cancelLeaderBtn').addEventListener('click', () => {
+        hideLeaderModal();
+    });
+    
+    // 모달 외부 클릭 시 닫기
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            hideLeaderModal();
+        }
+    });
+}
+
+// 리더 이름 입력 모달 숨기기
+function hideLeaderModal() {
+    const modal = document.getElementById('leaderModal');
+    modal.style.display = 'none';
+}
+
+// 리더 이름 검증 및 입장 처리
+async function handleLeaderSubmit(e) {
+    e.preventDefault();
+    
+    const modal = document.getElementById('leaderModal');
+    const groupId = modal.dataset.groupId;
+    const groupName = modal.dataset.groupName;
+    const correctLeaderName = modal.dataset.correctLeaderName;
+    const inputLeaderName = document.getElementById('leaderNameInput').value.trim();
+    
+    if (!inputLeaderName) {
+        alert('리더 이름을 입력해주세요.');
+        return;
+    }
+    
+    // 리더 이름 검증
+    if (inputLeaderName !== correctLeaderName) {
+        alert('리더 이름이 일치하지 않습니다. 다시 입력해주세요.');
+        document.getElementById('leaderNameInput').value = '';
+        document.getElementById('leaderNameInput').focus();
+        return;
+    }
+    
+    // 검증 통과 - 모달 닫고 입장
+    hideLeaderModal();
+    enterGroup(groupId, groupName);
+}
+
+// 모임 입장
+function enterGroup(groupId, groupName) {
     currentGroupId = groupId;
     currentGroupName = groupName;
     

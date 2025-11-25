@@ -37,6 +37,24 @@
         </div>
     </div>
 
+    <!-- 리더 이름 입력 모달 -->
+    <div id="leaderModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2>리더 이름 입력</h2>
+            <p class="modal-description">모임에 입장하려면 리더 이름을 입력해주세요.</p>
+            <form id="leaderForm">
+                <div class="form-group">
+                    <label for="leaderNameInput">리더 이름</label>
+                    <input type="text" id="leaderNameInput" placeholder="리더 이름을 입력하세요" required autofocus>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="modal-submit-btn">입장</button>
+                    <button type="button" class="modal-cancel-btn" id="cancelLeaderBtn">취소</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- 메인 페이지 (모임 선택 후 표시) -->
     <div id="mainPage" class="page" style="display: none;">
         <div class="container">
