@@ -1,21 +1,377 @@
-// 페이지 로드 시 근황 목록 불러오기
+// 현재 선택된 모임 ID
+let currentGroupId = null;
+let currentGroupName = null;
+
+// 페이지 로드 시 초기화
 document.addEventListener('DOMContentLoaded', async () => {
+    // 항상 모임 선택 페이지를 첫 화면으로 표시
+    showGroupSelectionPage();
+    await loadGroups();
+
+    // 모임 추가 폼 이벤트
+    document.getElementById('addGroupForm').addEventListener('submit', handleAddGroup);
+    
+    // 모임 변경 버튼 이벤트
+    document.getElementById('changeGroupBtn').addEventListener('click', () => {
+        showGroupSelectionPage();
+        loadGroups();
+    });
+});
+
+// 모임 선택 페이지 표시
+function showGroupSelectionPage() {
+    document.getElementById('groupSelectionPage').style.display = 'block';
+    document.getElementById('mainPage').style.display = 'none';
+}
+
+// 메인 페이지 표시
+function showMainPage() {
+    document.getElementById('groupSelectionPage').style.display = 'none';
+    document.getElementById('mainPage').style.display = 'block';
+    if (currentGroupName) {
+        document.getElementById('currentGroupName').textContent = currentGroupName;
+    }
+}
+
+// 모임 목록 불러오기
+async function loadGroups() {
+    const groupsList = document.getElementById('groupsList');
+    groupsList.innerHTML = '<p class="loading">로딩 중...</p>';
+
+    try {
+        const { data, error } = await supabase
+            .from('cat_groups')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            throw error;
+        }
+
+        if (data.length === 0) {
+            groupsList.innerHTML = '<p class="empty-state">아직 생성된 모임이 없습니다. 새 모임을 만들어보세요!</p>';
+            return;
+        }
+
+        groupsList.innerHTML = data.map(group => `
+            <div class="group-card" data-group-id="${group.id}">
+                <div class="group-name">${escapeHtml(group.name)}</div>
+                <button class="select-group-btn" data-group-id="${group.id}" data-group-name="${escapeHtml(group.name)}">
+                    선택
+                </button>
+            </div>
+        `).join('');
+
+        // 모임 선택 버튼 이벤트 리스너
+        document.querySelectorAll('.select-group-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const groupId = e.target.dataset.groupId;
+                const groupName = e.target.dataset.groupName;
+                selectGroup(groupId, groupName);
+            });
+        });
+    } catch (error) {
+        console.error('Error:', error);
+        groupsList.innerHTML = '<p class="empty-state">모임을 불러오는 중 오류가 발생했습니다.</p>';
+    }
+}
+
+// 모임 선택
+function selectGroup(groupId, groupName) {
+    currentGroupId = groupId;
+    currentGroupName = groupName;
+    
+    // 로컬 스토리지에 저장
+    localStorage.setItem('selectedGroupId', groupId);
+    localStorage.setItem('selectedGroupName', groupName);
+    
+    showMainPage();
+    initializeMainPage();
+}
+
+// 모임 추가 처리
+async function handleAddGroup(e) {
+    e.preventDefault();
+    
+    const groupName = document.getElementById('newGroupName').value.trim();
+    
+    if (!groupName) {
+        alert('모임 이름을 입력해주세요.');
+        return;
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from('cat_groups')
+            .insert([{ name: groupName }])
+            .select();
+
+        if (error) {
+            throw error;
+        }
+
+        alert('모임이 생성되었습니다!');
+        document.getElementById('newGroupName').value = '';
+        
+        // 모임 목록 새로고침
+        await loadGroups();
+    } catch (error) {
+        console.error('Error:', error);
+        if (error.code === '23505') { // UNIQUE constraint violation
+            alert('이미 존재하는 모임 이름입니다.');
+        } else {
+            alert('모임 생성 중 오류가 발생했습니다: ' + error.message);
+        }
+    }
+}
+
+// 메인 페이지 초기화
+async function initializeMainPage() {
     // 오늘 날짜를 기본값으로 설정
     const today = new Date().toISOString().split('T')[0];
-    document.getElementById('date').value = today;
+    const dateInput = document.getElementById('date');
+    if (dateInput) {
+        dateInput.value = today;
+    }
+
+    // 모임 멤버 목록 불러오기 및 드롭다운 업데이트
+    await loadGroupMembers();
 
     // 근황 목록 불러오기
     await loadUpdates();
 
     // 폼 제출 이벤트
-    document.getElementById('updateForm').addEventListener('submit', handleSubmit);
-});
+    const updateForm = document.getElementById('updateForm');
+    if (updateForm) {
+        updateForm.removeEventListener('submit', handleSubmit);
+        updateForm.addEventListener('submit', handleSubmit);
+    }
+
+    // 멤버 관리 토글 버튼
+    const toggleMembersBtn = document.getElementById('toggleMembersBtn');
+    if (toggleMembersBtn) {
+        toggleMembersBtn.addEventListener('click', () => {
+            const membersManagement = document.getElementById('membersManagement');
+            if (membersManagement.style.display === 'none') {
+                membersManagement.style.display = 'block';
+                toggleMembersBtn.textContent = '닫기';
+            } else {
+                membersManagement.style.display = 'none';
+                toggleMembersBtn.textContent = '멤버 관리';
+            }
+        });
+    }
+
+    // 멤버 추가 폼 이벤트
+    const addMemberForm = document.getElementById('addMemberForm');
+    if (addMemberForm) {
+        addMemberForm.addEventListener('submit', handleAddMember);
+    }
+}
+
+// 모임 멤버 목록 불러오기
+async function loadGroupMembers() {
+    if (!currentGroupId) return;
+
+    const membersList = document.getElementById('membersList');
+    if (!membersList) return;
+
+    try {
+        const { data, error } = await supabase
+            .from('cat_group_members')
+            .select('*')
+            .eq('group_id', currentGroupId)
+            .order('name', { ascending: true });
+
+        if (error) {
+            throw error;
+        }
+
+        if (data.length === 0) {
+            membersList.innerHTML = '<p class="empty-state">아직 추가된 멤버가 없습니다. 멤버를 추가해보세요!</p>';
+            updateMemberDropdowns([]);
+            return;
+        }
+
+        // 멤버 목록 표시
+        membersList.innerHTML = data.map(member => `
+            <div class="member-item">
+                <span class="member-name">${escapeHtml(member.name)}</span>
+                <button class="delete-member-btn" data-member-id="${member.id}" title="삭제">🗑️</button>
+            </div>
+        `).join('');
+
+        // 멤버 삭제 버튼 이벤트 리스너
+        document.querySelectorAll('.delete-member-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const memberId = e.target.closest('.delete-member-btn').dataset.memberId;
+                if (confirm('이 멤버를 삭제하시겠습니까?')) {
+                    await deleteMember(memberId);
+                }
+            });
+        });
+
+        // 드롭다운 업데이트
+        updateMemberDropdowns(data);
+    } catch (error) {
+        console.error('Error:', error);
+        membersList.innerHTML = '<p class="empty-state">멤버를 불러오는 중 오류가 발생했습니다.</p>';
+    }
+}
+
+// 멤버 드롭다운 업데이트
+function updateMemberDropdowns(members) {
+    const memberNames = members.map(m => m.name);
+
+    // 근황 작성 폼의 이름 드롭다운
+    const nameSelect = document.getElementById('name');
+    if (nameSelect) {
+        nameSelect.innerHTML = '<option value="">이름을 선택하세요</option>' +
+            memberNames.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+    }
+
+    // 모든 댓글 폼의 이름 드롭다운 업데이트
+    document.querySelectorAll('.commenter-name').forEach(select => {
+        select.innerHTML = '<option value="">이름 선택</option>' +
+            memberNames.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+    });
+
+    // 수정 폼의 이름 드롭다운도 업데이트
+    document.querySelectorAll('.edit-name').forEach(select => {
+        const currentValue = select.value;
+        select.innerHTML = memberNames.map(name => 
+            `<option value="${escapeHtml(name)}" ${name === currentValue ? 'selected' : ''}>${escapeHtml(name)}</option>`
+        ).join('');
+    });
+
+    // 댓글 수정 폼의 이름 드롭다운도 업데이트
+    document.querySelectorAll('.edit-commenter-name').forEach(select => {
+        const currentValue = select.value;
+        select.innerHTML = memberNames.map(name => 
+            `<option value="${escapeHtml(name)}" ${name === currentValue ? 'selected' : ''}>${escapeHtml(name)}</option>`
+        ).join('');
+    });
+}
+
+// 댓글 폼의 드롭다운 업데이트 (모임 멤버로)
+async function updateCommentDropdowns() {
+    if (!currentGroupId) return;
+
+    try {
+        const { data, error } = await supabase
+            .from('cat_group_members')
+            .select('name')
+            .eq('group_id', currentGroupId)
+            .order('name', { ascending: true });
+
+        if (error) {
+            throw error;
+        }
+
+        const memberNames = data.map(m => m.name);
+
+        // 모든 댓글 폼의 이름 드롭다운 업데이트
+        document.querySelectorAll('.commenter-name').forEach(select => {
+            select.innerHTML = '<option value="">이름 선택</option>' +
+                memberNames.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+        });
+
+        // 댓글 수정 폼의 이름 드롭다운도 업데이트
+        document.querySelectorAll('.edit-commenter-name').forEach(select => {
+            const currentValue = select.dataset.currentValue || select.value;
+            select.innerHTML = '<option value="">이름 선택</option>' +
+                memberNames.map(name => 
+                    `<option value="${escapeHtml(name)}" ${name === currentValue ? 'selected' : ''}>${escapeHtml(name)}</option>`
+                ).join('');
+        });
+
+        // 근황 수정 폼의 이름 드롭다운도 업데이트
+        document.querySelectorAll('.edit-name').forEach(select => {
+            const currentValue = select.dataset.currentValue || select.value;
+            select.innerHTML = '<option value="">이름 선택</option>' +
+                memberNames.map(name => 
+                    `<option value="${escapeHtml(name)}" ${name === currentValue ? 'selected' : ''}>${escapeHtml(name)}</option>`
+                ).join('');
+        });
+    } catch (error) {
+        console.error('Error updating comment dropdowns:', error);
+    }
+}
+
+// 멤버 추가 처리
+async function handleAddMember(e) {
+    e.preventDefault();
+
+    if (!currentGroupId) {
+        alert('모임을 선택해주세요.');
+        return;
+    }
+
+    const memberName = document.getElementById('newMemberName').value.trim();
+
+    if (!memberName) {
+        alert('멤버 이름을 입력해주세요.');
+        return;
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from('cat_group_members')
+            .insert([{
+                group_id: currentGroupId,
+                name: memberName
+            }])
+            .select();
+
+        if (error) {
+            throw error;
+        }
+
+        alert('멤버가 추가되었습니다!');
+        document.getElementById('newMemberName').value = '';
+
+        // 멤버 목록 새로고침
+        await loadGroupMembers();
+    } catch (error) {
+        console.error('Error:', error);
+        if (error.code === '23505') { // UNIQUE constraint violation
+            alert('이미 존재하는 멤버 이름입니다.');
+        } else {
+            alert('멤버 추가 중 오류가 발생했습니다: ' + error.message);
+        }
+    }
+}
+
+// 멤버 삭제
+async function deleteMember(memberId) {
+    try {
+        const { error } = await supabase
+            .from('cat_group_members')
+            .delete()
+            .eq('id', memberId);
+
+        if (error) {
+            throw error;
+        }
+
+        await loadGroupMembers();
+    } catch (error) {
+        console.error('Error:', error);
+        alert('멤버 삭제 중 오류가 발생했습니다: ' + error.message);
+    }
+}
 
 // 폼 제출 처리
 async function handleSubmit(e) {
     e.preventDefault();
 
+    if (!currentGroupId) {
+        alert('모임을 선택해주세요.');
+        return;
+    }
+
     const formData = {
+        group_id: currentGroupId,
         name: document.getElementById('name').value.trim(),
         date: document.getElementById('date').value,
         work_life: document.getElementById('work_life').value.trim() || null,
@@ -58,13 +414,20 @@ async function handleSubmit(e) {
 
 // 근황 목록 불러오기
 async function loadUpdates() {
+    if (!currentGroupId) {
+        return;
+    }
+
     const updatesList = document.getElementById('updatesList');
+    if (!updatesList) return;
+    
     updatesList.innerHTML = '<p class="loading">로딩 중...</p>';
 
     try {
         const { data, error } = await supabase
             .from('cat_updates')
             .select('*')
+            .eq('group_id', currentGroupId)
             .order('date', { ascending: false })
             .order('created_at', { ascending: false });
 
@@ -97,6 +460,9 @@ async function loadUpdates() {
         
         // 근황 수정/삭제 버튼 이벤트 리스너 추가
         attachUpdateActionListeners();
+        
+        // 댓글 폼의 드롭다운 업데이트 (모임 멤버로)
+        await updateCommentDropdowns();
     } catch (error) {
         console.error('Error:', error);
         updatesList.innerHTML = '<p class="empty-state">근황을 불러오는 중 오류가 발생했습니다.</p>';
@@ -148,12 +514,8 @@ function createUpdateCard(update) {
                 <div class="comment-edit-form" data-comment-id="${comment.id}" style="display: none;">
                     <form class="edit-comment-form">
                         <div class="comment-edit-row">
-                            <select class="edit-commenter-name" required>
-                                <option value="김구" ${comment.commenter_name === '김구' ? 'selected' : ''}>김구</option>
-                                <option value="조원일" ${comment.commenter_name === '조원일' ? 'selected' : ''}>조원일</option>
-                                <option value="이병근" ${comment.commenter_name === '이병근' ? 'selected' : ''}>이병근</option>
-                                <option value="김경남" ${comment.commenter_name === '김경남' ? 'selected' : ''}>김경남</option>
-                                <option value="김재환" ${comment.commenter_name === '김재환' ? 'selected' : ''}>김재환</option>
+                            <select class="edit-commenter-name" required data-current-value="${escapeHtml(comment.commenter_name)}">
+                                <option value="">이름 선택</option>
                             </select>
                             <textarea class="edit-comment-content" rows="2" required>${escapeHtml(comment.content)}</textarea>
                             <div class="comment-edit-actions">
@@ -190,12 +552,8 @@ function createUpdateCard(update) {
                 <form class="edit-update-form">
                     <div class="form-group">
                         <label>이름 *</label>
-                        <select class="edit-name" required>
-                            <option value="김구" ${update.name === '김구' ? 'selected' : ''}>김구</option>
-                            <option value="조원일" ${update.name === '조원일' ? 'selected' : ''}>조원일</option>
-                            <option value="이병근" ${update.name === '이병근' ? 'selected' : ''}>이병근</option>
-                            <option value="김경남" ${update.name === '김경남' ? 'selected' : ''}>김경남</option>
-                            <option value="김재환" ${update.name === '김재환' ? 'selected' : ''}>김재환</option>
+                        <select class="edit-name" required data-current-value="${escapeHtml(update.name)}">
+                            <option value="">이름 선택</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -237,11 +595,6 @@ function createUpdateCard(update) {
                     <div class="comment-form-row">
                         <select class="commenter-name" required>
                             <option value="">이름 선택</option>
-                            <option value="김구">김구</option>
-                            <option value="조원일">조원일</option>
-                            <option value="이병근">이병근</option>
-                            <option value="김경남">김경남</option>
-                            <option value="김재환">김재환</option>
                         </select>
                         <textarea class="comment-content-input" rows="2" placeholder="댓글을 입력하세요..." required></textarea>
                         <button type="submit" class="comment-submit-btn">댓글 작성</button>
@@ -254,6 +607,7 @@ function createUpdateCard(update) {
 
 // XSS 방지를 위한 HTML 이스케이프
 function escapeHtml(text) {
+    if (!text) return '';
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
@@ -285,6 +639,7 @@ function formatCommentDate(dateString) {
 // 댓글 폼 이벤트 리스너 추가
 function attachCommentListeners() {
     document.querySelectorAll('.comment-form').forEach(form => {
+        form.removeEventListener('submit', handleCommentSubmit);
         form.addEventListener('submit', handleCommentSubmit);
     });
 }
@@ -333,73 +688,97 @@ async function handleCommentSubmit(e) {
 function attachUpdateActionListeners() {
     // 수정 버튼
     document.querySelectorAll('.edit-update-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const updateId = e.target.closest('.edit-update-btn').dataset.updateId;
-            toggleUpdateEditMode(updateId);
-        });
+        btn.removeEventListener('click', handleEditUpdate);
+        btn.addEventListener('click', handleEditUpdate);
     });
 
     // 삭제 버튼
     document.querySelectorAll('.delete-update-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const updateId = e.target.closest('.delete-update-btn').dataset.updateId;
-            if (confirm('이 근황을 삭제하시겠습니까?')) {
-                deleteUpdate(updateId);
-            }
-        });
+        btn.removeEventListener('click', handleDeleteUpdate);
+        btn.addEventListener('click', handleDeleteUpdate);
     });
 
     // 수정 폼 제출
     document.querySelectorAll('.edit-update-form').forEach(form => {
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const updateId = e.target.closest('.update-edit-form').dataset.updateId;
-            saveUpdate(updateId);
-        });
+        form.removeEventListener('submit', handleSaveUpdate);
+        form.addEventListener('submit', handleSaveUpdate);
     });
 
     // 수정 취소 버튼
     document.querySelectorAll('.cancel-edit-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const updateId = e.target.closest('.update-edit-form').dataset.updateId;
-            toggleUpdateEditMode(updateId);
-        });
+        btn.removeEventListener('click', handleCancelEdit);
+        btn.addEventListener('click', handleCancelEdit);
     });
 
     // 댓글 수정 버튼
     document.querySelectorAll('.edit-comment-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const commentId = e.target.closest('.edit-comment-btn').dataset.commentId;
-            toggleCommentEditMode(commentId);
-        });
+        btn.removeEventListener('click', handleEditComment);
+        btn.addEventListener('click', handleEditComment);
     });
 
     // 댓글 삭제 버튼
     document.querySelectorAll('.delete-comment-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const commentId = e.target.closest('.delete-comment-btn').dataset.commentId;
-            if (confirm('이 댓글을 삭제하시겠습니까?')) {
-                deleteComment(commentId);
-            }
-        });
+        btn.removeEventListener('click', handleDeleteComment);
+        btn.addEventListener('click', handleDeleteComment);
     });
 
     // 댓글 수정 폼 제출
     document.querySelectorAll('.edit-comment-form').forEach(form => {
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const commentId = e.target.closest('.comment-edit-form').dataset.commentId;
-            saveComment(commentId);
-        });
+        form.removeEventListener('submit', handleSaveComment);
+        form.addEventListener('submit', handleSaveComment);
     });
 
     // 댓글 수정 취소 버튼
     document.querySelectorAll('.cancel-comment-edit-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const commentId = e.target.closest('.comment-edit-form').dataset.commentId;
-            toggleCommentEditMode(commentId);
-        });
+        btn.removeEventListener('click', handleCancelCommentEdit);
+        btn.addEventListener('click', handleCancelCommentEdit);
     });
+}
+
+function handleEditUpdate(e) {
+    const updateId = e.target.closest('.edit-update-btn').dataset.updateId;
+    toggleUpdateEditMode(updateId);
+}
+
+function handleDeleteUpdate(e) {
+    const updateId = e.target.closest('.delete-update-btn').dataset.updateId;
+    if (confirm('이 근황을 삭제하시겠습니까?')) {
+        deleteUpdate(updateId);
+    }
+}
+
+function handleSaveUpdate(e) {
+    e.preventDefault();
+    const updateId = e.target.closest('.update-edit-form').dataset.updateId;
+    saveUpdate(updateId);
+}
+
+function handleCancelEdit(e) {
+    const updateId = e.target.closest('.update-edit-form').dataset.updateId;
+    toggleUpdateEditMode(updateId);
+}
+
+function handleEditComment(e) {
+    const commentId = e.target.closest('.edit-comment-btn').dataset.commentId;
+    toggleCommentEditMode(commentId);
+}
+
+function handleDeleteComment(e) {
+    const commentId = e.target.closest('.delete-comment-btn').dataset.commentId;
+    if (confirm('이 댓글을 삭제하시겠습니까?')) {
+        deleteComment(commentId);
+    }
+}
+
+function handleSaveComment(e) {
+    e.preventDefault();
+    const commentId = e.target.closest('.comment-edit-form').closest('.comment-edit-form').dataset.commentId;
+    saveComment(commentId);
+}
+
+function handleCancelCommentEdit(e) {
+    const commentId = e.target.closest('.comment-edit-form').dataset.commentId;
+    toggleCommentEditMode(commentId);
 }
 
 // 근황 수정 모드 토글

@@ -8,13 +8,71 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>💬 Catch up</h1>
-            <p class="subtitle">친구들과 만나기 전, 요즘 어떻게 지내는지 근황을 공유해보세요</p>
-        </header>
+    <!-- 모임 선택 페이지 -->
+    <div id="groupSelectionPage" class="page">
+        <div class="container">
+            <header>
+                <h1>💬 Catch up</h1>
+                <p class="subtitle">모임을 선택하거나 새 모임을 만들어주세요</p>
+            </header>
 
-        <main>
+            <main>
+                <section class="group-selection-section">
+                    <h2>모임 선택</h2>
+                    <div id="groupsList" class="groups-list">
+                        <p class="loading">로딩 중...</p>
+                    </div>
+                    
+                    <div class="add-group-section">
+                        <h3>새 모임 만들기</h3>
+                        <form id="addGroupForm">
+                            <div class="form-group">
+                                <input type="text" id="newGroupName" placeholder="모임 이름을 입력하세요" required>
+                                <button type="submit" class="add-group-btn">모임 추가</button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- 메인 페이지 (모임 선택 후 표시) -->
+    <div id="mainPage" class="page" style="display: none;">
+        <div class="container">
+            <header>
+                <div class="header-top">
+                    <h1>💬 Catch up</h1>
+                    <button id="changeGroupBtn" class="change-group-btn">모임 변경</button>
+                </div>
+                <p class="subtitle">
+                    <span id="currentGroupName">모임 이름</span> - 친구들과 만나기 전, 요즘 어떻게 지내는지 근황을 공유해보세요
+                </p>
+            </header>
+
+            <main>
+            <!-- 모임 멤버 관리 섹션 -->
+            <section class="members-section">
+                <div class="members-header">
+                    <h2>모임 멤버</h2>
+                    <button id="toggleMembersBtn" class="toggle-members-btn">멤버 관리</button>
+                </div>
+                <div id="membersManagement" class="members-management" style="display: none;">
+                    <div id="membersList" class="members-list">
+                        <p class="loading">로딩 중...</p>
+                    </div>
+                    <div class="add-member-section">
+                        <h3>멤버 추가</h3>
+                        <form id="addMemberForm">
+                            <div class="form-group">
+                                <input type="text" id="newMemberName" placeholder="멤버 이름을 입력하세요" required>
+                                <button type="submit" class="add-member-btn">멤버 추가</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
             <!-- 근황 작성 폼 -->
             <section class="form-section">
                 <h2>근황 작성하기</h2>
@@ -23,11 +81,6 @@
                         <label for="name">이름 *</label>
                         <select id="name" name="name" required>
                             <option value="">이름을 선택하세요</option>
-                            <option value="김구">김구</option>
-                            <option value="조원일">조원일</option>
-                            <option value="이병근">이병근</option>
-                            <option value="김경남">김경남</option>
-                            <option value="김재환">김재환</option>
                         </select>
                     </div>
 
@@ -72,7 +125,8 @@
                     <p class="loading">로딩 중...</p>
                 </div>
             </section>
-        </main>
+            </main>
+        </div>
     </div>
 
     <script src="config.js"></script>

@@ -12,6 +12,10 @@ body {
     color: #333;
 }
 
+.page {
+    min-height: 100vh;
+}
+
 .container {
     max-width: 900px;
     margin: 0 auto;
@@ -28,6 +32,34 @@ header h1 {
     font-size: 3rem;
     margin-bottom: 10px;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.header-top h1 {
+    margin-bottom: 0;
+}
+
+.change-group-btn {
+    padding: 10px 20px;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.change-group-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
 }
 
 .subtitle {
@@ -531,6 +563,233 @@ section h2 {
     color: #888;
 }
 
+/* 모임 멤버 관리 섹션 스타일 */
+.members-section {
+    background: white;
+    border-radius: 16px;
+    padding: 30px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.members-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.members-header h2 {
+    color: #667eea;
+    margin-bottom: 0;
+    font-size: 1.8rem;
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.toggle-members-btn {
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.toggle-members-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+.members-management {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 2px solid #f0f0f0;
+}
+
+.members-list {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.member-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 3px solid #764ba2;
+}
+
+.member-name {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #555;
+}
+
+.delete-member-btn {
+    background: none;
+    border: none;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.delete-member-btn:hover {
+    background-color: #ffebee;
+}
+
+.add-member-section {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 2px solid #f0f0f0;
+}
+
+.add-member-section h3 {
+    color: #667eea;
+    margin-bottom: 15px;
+    font-size: 1.2rem;
+}
+
+.add-member-section .form-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 0;
+}
+
+.add-member-section .form-group input {
+    flex: 1;
+}
+
+.add-member-btn {
+    padding: 12px 25px;
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    white-space: nowrap;
+}
+
+.add-member-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(118, 75, 162, 0.4);
+}
+
+.add-member-btn:active {
+    transform: translateY(0);
+}
+
+/* 모임 선택 페이지 스타일 */
+.group-selection-section {
+    background: white;
+    border-radius: 16px;
+    padding: 30px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.groups-list {
+    display: grid;
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.group-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 12px;
+    border-left: 4px solid #667eea;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.group-card:hover {
+    transform: translateX(5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.group-name {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #667eea;
+}
+
+.select-group-btn {
+    padding: 10px 25px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.select-group-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+.select-group-btn:active {
+    transform: translateY(0);
+}
+
+.add-group-section {
+    margin-top: 30px;
+    padding-top: 30px;
+    border-top: 2px solid #f0f0f0;
+}
+
+.add-group-section h3 {
+    color: #667eea;
+    margin-bottom: 15px;
+    font-size: 1.3rem;
+}
+
+.add-group-section .form-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 0;
+}
+
+.add-group-section .form-group input {
+    flex: 1;
+}
+
+.add-group-btn {
+    padding: 12px 30px;
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    white-space: nowrap;
+}
+
+.add-group-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(118, 75, 162, 0.4);
+}
+
+.add-group-btn:active {
+    transform: translateY(0);
+}
+
 /* 반응형 디자인 */
 @media (max-width: 768px) {
     header h1 {
@@ -567,5 +826,51 @@ section h2 {
     .save-comment-btn,
     .cancel-comment-edit-btn {
         flex: 1;
+    }
+
+    .header-top {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .change-group-btn {
+        width: 100%;
+    }
+
+    .group-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .select-group-btn {
+        width: 100%;
+    }
+
+    .add-group-section .form-group {
+        flex-direction: column;
+    }
+
+    .add-group-btn {
+        width: 100%;
+    }
+
+    .members-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .toggle-members-btn {
+        width: 100%;
+    }
+
+    .add-member-section .form-group {
+        flex-direction: column;
+    }
+
+    .add-member-btn {
+        width: 100%;
     }
 }
