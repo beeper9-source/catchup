@@ -548,7 +548,10 @@ async function loadGroupMembers() {
         // 멤버 목록 표시
         membersList.innerHTML = data.map(member => `
             <div class="member-item">
-                <span class="member-name">${escapeHtml(member.name)}</span>
+                <div class="member-info">
+                    <span class="member-name">${escapeHtml(member.name)}</span>
+                    ${member.email ? `<span class="member-email">${escapeHtml(member.email)}</span>` : ''}
+                </div>
                 <button class="delete-member-btn" data-member-id="${member.id}" title="삭제">🗑️</button>
             </div>
         `).join('');
@@ -660,9 +663,16 @@ async function handleAddMember(e) {
     }
 
     const memberName = document.getElementById('newMemberName').value.trim();
+    const memberEmail = document.getElementById('newMemberEmail').value.trim();
 
     if (!memberName) {
         alert('멤버 이름을 입력해주세요.');
+        return;
+    }
+
+    // 이메일 형식 검증 (입력된 경우)
+    if (memberEmail && !isValidEmail(memberEmail)) {
+        alert('올바른 이메일 주소를 입력해주세요.');
         return;
     }
 
@@ -671,7 +681,8 @@ async function handleAddMember(e) {
             .from('cat_group_members')
             .insert([{
                 group_id: currentGroupId,
-                name: memberName
+                name: memberName,
+                email: memberEmail || null
             }])
             .select();
 
@@ -681,6 +692,7 @@ async function handleAddMember(e) {
 
         alert('멤버가 추가되었습니다!');
         document.getElementById('newMemberName').value = '';
+        document.getElementById('newMemberEmail').value = '';
 
         // 멤버 목록 새로고침
         await loadGroupMembers();
@@ -882,6 +894,14 @@ async function handleSubmit(e) {
 
         // 성공 메시지
         alert('근황이 성공적으로 공유되었습니다!');
+        
+        // 이메일 알림 전송 (비동기, 오류가 발생해도 계속 진행)
+        if (data && data.length > 0) {
+            sendUpdateNotification(data[0].id, formData.name).catch(err => {
+                console.error('이메일 알림 전송 실패:', err);
+                // 사용자에게 알리지 않음 (백그라운드 작업)
+            });
+        }
         
         // 폼 초기화
         document.getElementById('updateForm').reset();
@@ -1166,6 +1186,71 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// 이메일 형식 검증
+function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+}
+
+// 근황 작성 시 이메일 알림 전송
+async function sendUpdateNotification(updateId, authorName) {
+    if (!currentGroupId) return;
+    
+    try {
+        const response = await fetch(`https://nqwjvrznwzmfytjlpfsk.supabase.co/functions/v1/send-catchup-notification`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xd2p2cnpud3ptZnl0amxwZnNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzNzA4NTEsImV4cCI6MjA3Mzk0Njg1MX0.R3Y2Xb9PmLr3sCLSdJov4Mgk1eAmhaCIPXEKq6u8NQI`
+            },
+            body: JSON.stringify({
+                type: 'update',
+                groupId: currentGroupId,
+                updateId: updateId,
+                authorName: authorName
+            })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            console.log(`이메일 알림 전송 완료: ${result.sent}명에게 발송`);
+        } else {
+            console.error('이메일 알림 전송 실패:', result.error);
+        }
+    } catch (error) {
+        console.error('이메일 알림 전송 오류:', error);
+    }
+}
+
+// 댓글 작성 시 이메일 알림 전송
+async function sendCommentNotification(groupId, updateId, commentId, authorName) {
+    try {
+        const response = await fetch(`https://nqwjvrznwzmfytjlpfsk.supabase.co/functions/v1/send-catchup-notification`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xd2p2cnpud3ptZnl0amxwZnNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzNzA4NTEsImV4cCI6MjA3Mzk0Njg1MX0.R3Y2Xb9PmLr3sCLSdJov4Mgk1eAmhaCIPXEKq6u8NQI`
+            },
+            body: JSON.stringify({
+                type: 'comment',
+                groupId: groupId,
+                updateId: updateId,
+                commentId: commentId,
+                authorName: authorName
+            })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            console.log(`이메일 알림 전송 완료: ${result.sent}명에게 발송`);
+        } else {
+            console.error('이메일 알림 전송 실패:', result.error);
+        }
+    } catch (error) {
+        console.error('이메일 알림 전송 오류:', error);
+    }
+}
+
 // 댓글 날짜 포맷팅
 function formatCommentDate(dateString) {
     const date = new Date(dateString);
@@ -1223,6 +1308,28 @@ async function handleCommentSubmit(e) {
 
         if (error) {
             throw error;
+        }
+
+        // 이메일 알림 전송 (비동기, 오류가 발생해도 계속 진행)
+        if (data && data.length > 0) {
+            // 근황의 그룹 ID 가져오기
+            const { data: updateData } = await supabase
+                .from('cat_updates')
+                .select('group_id')
+                .eq('id', updateId)
+                .single();
+            
+            if (updateData) {
+                sendCommentNotification(
+                    updateData.group_id,
+                    updateId,
+                    data[0].id,
+                    commenterName
+                ).catch(err => {
+                    console.error('이메일 알림 전송 실패:', err);
+                    // 사용자에게 알리지 않음 (백그라운드 작업)
+                });
+            }
         }
 
         // 댓글 입력 필드 초기화
