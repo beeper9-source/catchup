@@ -1088,6 +1088,29 @@ function createUpdateCard(update) {
                         <label>최근 관심사</label>
                         <textarea class="edit-recent_interests" rows="3">${escapeHtml(update.recent_interests || '')}</textarea>
                     </div>
+                    <div class="form-group">
+                        <label>사진 수정</label>
+                        <div class="edit-images-section">
+                            <div class="edit-existing-images" data-update-id="${update.id}">
+                                ${(update.image_urls && update.image_urls.length > 0) || update.image_url ? `
+                                    <div class="existing-images-label">기존 사진</div>
+                                    <div class="existing-images-list">
+                                        ${(update.image_urls || (update.image_url ? [update.image_url] : [])).map((url, idx) => `
+                                            <div class="existing-image-item" data-image-url="${escapeHtml(url)}" data-image-index="${idx}">
+                                                <img src="${escapeHtml(url)}" alt="기존 이미지" class="existing-image-preview">
+                                                <button type="button" class="remove-existing-image-btn" data-image-url="${escapeHtml(url)}" title="삭제">×</button>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                ` : '<p class="no-images-message">등록된 사진이 없습니다.</p>'}
+                            </div>
+                            <div class="edit-new-images">
+                                <label for="edit-images-${update.id}" class="add-images-label">새 사진 추가</label>
+                                <input type="file" class="edit-images-input" id="edit-images-${update.id}" accept="image/*" multiple>
+                                <div class="edit-image-preview" data-update-id="${update.id}"></div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="edit-form-actions">
                         <button type="submit" class="save-update-btn">저장</button>
                         <button type="button" class="cancel-edit-btn">취소</button>
@@ -1320,15 +1343,153 @@ function toggleUpdateEditMode(updateId) {
     if (editForm.style.display === 'none') {
         display.style.display = 'none';
         editForm.style.display = 'block';
+        
+        // 이미지 수정 관련 이벤트 리스너 추가
+        setupEditImageHandlers(updateId);
     } else {
         display.style.display = 'block';
         editForm.style.display = 'none';
     }
 }
 
+// 이미지 수정 핸들러 설정
+function setupEditImageHandlers(updateId) {
+    const editForm = document.querySelector(`.update-edit-form[data-update-id="${updateId}"]`);
+    if (!editForm) return;
+    
+    // 기존 이미지 삭제 버튼
+    const removeButtons = editForm.querySelectorAll('.remove-existing-image-btn');
+    removeButtons.forEach(btn => {
+        btn.onclick = (e) => {
+            e.preventDefault();
+            const imageItem = btn.closest('.existing-image-item');
+            if (imageItem) {
+                imageItem.remove();
+                
+                // 이미지가 모두 삭제된 경우 메시지 표시
+                const existingImagesList = editForm.querySelector('.existing-images-list');
+                if (existingImagesList && existingImagesList.children.length === 0) {
+                    const existingImagesContainer = editForm.querySelector('.edit-existing-images');
+                    if (existingImagesContainer) {
+                        existingImagesContainer.innerHTML = '<p class="no-images-message">등록된 사진이 없습니다.</p>';
+                    }
+                }
+            }
+        };
+    });
+    
+    // 새 이미지 미리보기
+    const newImagesInput = editForm.querySelector('.edit-images-input');
+    const previewContainer = editForm.querySelector('.edit-image-preview');
+    
+    if (newImagesInput && previewContainer) {
+        newImagesInput.onchange = (e) => {
+            handleEditImagePreview(e, previewContainer);
+        };
+    }
+}
+
+// 수정 폼의 이미지 미리보기 처리
+function handleEditImagePreview(e, previewContainer) {
+    previewContainer.innerHTML = '';
+    
+    const input = e.target;
+    const files = input.files;
+    if (files.length === 0) return;
+
+    Array.from(files).forEach((file, index) => {
+        if (!file.type.startsWith('image/')) {
+            alert(`${file.name}은(는) 이미지 파일이 아닙니다.`);
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (readerEvent) => {
+            const imgContainer = document.createElement('div');
+            imgContainer.className = 'preview-image-item';
+            imgContainer.dataset.index = index;
+            
+            const img = document.createElement('img');
+            img.src = readerEvent.target.result;
+            img.className = 'preview-image';
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'remove-image-btn';
+            removeBtn.textContent = '×';
+            removeBtn.onclick = () => removeEditImagePreview(index, previewContainer, input);
+            
+            imgContainer.appendChild(img);
+            imgContainer.appendChild(removeBtn);
+            previewContainer.appendChild(imgContainer);
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+// 수정 폼의 이미지 미리보기 제거
+function removeEditImagePreview(index, previewContainer, input) {
+    const dt = new DataTransfer();
+    const files = Array.from(input.files);
+    
+    files.forEach((file, i) => {
+        if (i !== index) {
+            dt.items.add(file);
+        }
+    });
+    
+    input.files = dt.files;
+    
+    // 미리보기 다시 생성
+    const event = new Event('change');
+    input.dispatchEvent(event);
+}
+
 // 근황 저장
 async function saveUpdate(updateId) {
     const editForm = document.querySelector(`.update-edit-form[data-update-id="${updateId}"]`);
+    
+    // 기존 이미지 URL 목록 가져오기 (삭제되지 않은 것만)
+    const existingImagesContainer = editForm.querySelector('.edit-existing-images');
+    const remainingImages = [];
+    if (existingImagesContainer) {
+        const existingImageItems = existingImagesContainer.querySelectorAll('.existing-image-item');
+        existingImageItems.forEach(item => {
+            const imageUrl = item.dataset.imageUrl;
+            if (imageUrl) {
+                remainingImages.push(imageUrl);
+            }
+        });
+    }
+    
+    // 새로 추가할 이미지 업로드
+    const newImagesInput = editForm.querySelector('.edit-images-input');
+    let newImageUrls = [];
+    
+    if (newImagesInput && newImagesInput.files.length > 0) {
+        try {
+            newImageUrls = await uploadImages(newImagesInput.files);
+        } catch (error) {
+            let errorMessage = '이미지 업로드 중 오류가 발생했습니다: ' + error.message;
+            
+            // 버킷이 없는 경우 상세 안내
+            if (error.message && error.message.includes('버킷이 생성되지 않았습니다')) {
+                errorMessage += '\n\nSupabase 대시보드에서 다음 단계를 따라주세요:\n';
+                errorMessage += '1. Storage 메뉴로 이동\n';
+                errorMessage += '2. "New bucket" 클릭\n';
+                errorMessage += '3. 버킷 이름: catchup-images\n';
+                errorMessage += '4. Public bucket 옵션 활성화\n';
+                errorMessage += '5. Create bucket 클릭';
+            }
+            
+            alert(errorMessage);
+            return;
+        }
+    }
+    
+    // 기존 이미지와 새 이미지 합치기
+    const allImageUrls = [...remainingImages, ...newImageUrls];
+    
     const formData = {
         name: editForm.querySelector('.edit-name').value.trim(),
         date: editForm.querySelector('.edit-date').value,
@@ -1336,7 +1497,8 @@ async function saveUpdate(updateId) {
         hobby_life: editForm.querySelector('.edit-hobby_life').value.trim() || null,
         health_care: editForm.querySelector('.edit-health_care').value.trim() || null,
         family_news: editForm.querySelector('.edit-family_news').value.trim() || null,
-        recent_interests: editForm.querySelector('.edit-recent_interests').value.trim() || null
+        recent_interests: editForm.querySelector('.edit-recent_interests').value.trim() || null,
+        image_urls: allImageUrls.length > 0 ? allImageUrls : null
     };
 
     if (!formData.name || !formData.date) {
