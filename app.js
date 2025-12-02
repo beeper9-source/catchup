@@ -547,12 +547,24 @@ async function loadGroupMembers() {
 
         // 멤버 목록 표시
         membersList.innerHTML = data.map(member => `
-            <div class="member-item">
+            <div class="member-item" data-member-id="${member.id}">
                 <div class="member-info">
                     <span class="member-name">${escapeHtml(member.name)}</span>
-                    ${member.email ? `<span class="member-email">${escapeHtml(member.email)}</span>` : ''}
+                    <div class="member-email-display">
+                        ${member.email ? `<span class="member-email">${escapeHtml(member.email)}</span>` : '<span class="member-email no-email">이메일 없음</span>'}
+                    </div>
                 </div>
-                <button class="delete-member-btn" data-member-id="${member.id}" title="삭제">🗑️</button>
+                <div class="member-email-edit" style="display: none;">
+                    <input type="email" class="edit-member-email-input" value="${member.email || ''}" placeholder="이메일 주소를 입력하세요">
+                    <div class="member-edit-actions">
+                        <button class="save-member-email-btn" data-member-id="${member.id}" title="저장">✓</button>
+                        <button class="cancel-member-email-btn" data-member-id="${member.id}" title="취소">✕</button>
+                    </div>
+                </div>
+                <div class="member-actions">
+                    <button class="edit-member-email-btn" data-member-id="${member.id}" title="이메일 수정">✏️</button>
+                    <button class="delete-member-btn" data-member-id="${member.id}" title="삭제">🗑️</button>
+                </div>
             </div>
         `).join('');
 
@@ -563,6 +575,30 @@ async function loadGroupMembers() {
                 if (confirm('이 멤버를 삭제하시겠습니까?')) {
                     await deleteMember(memberId);
                 }
+            });
+        });
+
+        // 이메일 수정 버튼 이벤트 리스너
+        document.querySelectorAll('.edit-member-email-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const memberId = e.target.closest('.edit-member-email-btn').dataset.memberId;
+                toggleMemberEmailEdit(memberId);
+            });
+        });
+
+        // 이메일 저장 버튼 이벤트 리스너
+        document.querySelectorAll('.save-member-email-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const memberId = e.target.closest('.save-member-email-btn').dataset.memberId;
+                await saveMemberEmail(memberId);
+            });
+        });
+
+        // 이메일 수정 취소 버튼 이벤트 리스너
+        document.querySelectorAll('.cancel-member-email-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const memberId = e.target.closest('.cancel-member-email-btn').dataset.memberId;
+                toggleMemberEmailEdit(memberId);
             });
         });
 
@@ -722,6 +758,71 @@ async function deleteMember(memberId) {
     } catch (error) {
         console.error('Error:', error);
         alert('멤버 삭제 중 오류가 발생했습니다: ' + error.message);
+    }
+}
+
+// 멤버 이메일 수정 모드 토글
+function toggleMemberEmailEdit(memberId) {
+    const memberItem = document.querySelector(`.member-item[data-member-id="${memberId}"]`);
+    if (!memberItem) return;
+
+    const emailDisplay = memberItem.querySelector('.member-email-display');
+    const emailEdit = memberItem.querySelector('.member-email-edit');
+    const memberActions = memberItem.querySelector('.member-actions');
+
+    if (emailEdit.style.display === 'none') {
+        // 수정 모드로 전환
+        emailDisplay.style.display = 'none';
+        emailEdit.style.display = 'flex';
+        memberActions.style.display = 'none';
+        
+        // 입력 필드에 포커스
+        const input = emailEdit.querySelector('.edit-member-email-input');
+        if (input) {
+            input.focus();
+            input.select();
+        }
+    } else {
+        // 표시 모드로 전환
+        emailDisplay.style.display = 'block';
+        emailEdit.style.display = 'none';
+        memberActions.style.display = 'flex';
+    }
+}
+
+// 멤버 이메일 저장
+async function saveMemberEmail(memberId) {
+    const memberItem = document.querySelector(`.member-item[data-member-id="${memberId}"]`);
+    if (!memberItem) return;
+
+    const input = memberItem.querySelector('.edit-member-email-input');
+    const email = input.value.trim();
+
+    // 이메일 형식 검증 (입력된 경우)
+    if (email && !isValidEmail(email)) {
+        alert('올바른 이메일 주소를 입력해주세요.');
+        input.focus();
+        return;
+    }
+
+    try {
+        const { error } = await supabase
+            .from('cat_group_members')
+            .update({ email: email || null })
+            .eq('id', memberId);
+
+        if (error) {
+            throw error;
+        }
+
+        // 성공 메시지 (선택사항)
+        // alert('이메일이 수정되었습니다!');
+
+        // 멤버 목록 새로고침
+        await loadGroupMembers();
+    } catch (error) {
+        console.error('Error:', error);
+        alert('이메일 수정 중 오류가 발생했습니다: ' + error.message);
     }
 }
 

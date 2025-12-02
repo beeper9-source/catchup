@@ -758,6 +758,7 @@ section h2 {
     background: #f8f9fa;
     border-radius: 8px;
     border-left: 3px solid #764ba2;
+    gap: 10px;
 }
 
 .member-info {
@@ -773,11 +774,86 @@ section h2 {
     color: #555;
 }
 
+.member-email-display {
+    display: block;
+}
+
 .member-email {
     font-size: 0.85rem;
     color: #888;
 }
 
+.member-email.no-email {
+    color: #ccc;
+    font-style: italic;
+}
+
+.member-email-edit {
+    display: none;
+    flex: 1;
+    align-items: center;
+    gap: 8px;
+}
+
+.edit-member-email-input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    transition: border-color 0.3s ease;
+}
+
+.edit-member-email-input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.member-edit-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.save-member-email-btn,
+.cancel-member-email-btn {
+    background: none;
+    border: none;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 5px 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.save-member-email-btn {
+    color: #4caf50;
+}
+
+.save-member-email-btn:hover {
+    background-color: #e8f5e9;
+}
+
+.cancel-member-email-btn {
+    color: #f44336;
+}
+
+.cancel-member-email-btn:hover {
+    background-color: #ffebee;
+}
+
+.member-actions {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+
+.edit-member-email-btn,
 .delete-member-btn {
     background: none;
     border: none;
@@ -786,6 +862,10 @@ section h2 {
     padding: 5px;
     border-radius: 4px;
     transition: background-color 0.2s ease;
+}
+
+.edit-member-email-btn:hover {
+    background-color: #e3f2fd;
 }
 
 .delete-member-btn:hover {
