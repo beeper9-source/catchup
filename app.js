@@ -1002,6 +1002,25 @@ async function handleSubmit(e) {
                 console.error('이메일 알림 전송 실패:', err);
                 // 사용자에게 알리지 않음 (백그라운드 작업)
             });
+            
+            // OpenAI를 사용한 자동 댓글 생성 (비동기, 오류가 발생해도 계속 진행)
+            generateAutoComment(formData)
+                .then(commentContent => {
+                    if (commentContent) {
+                        return saveAutoComment(data[0].id, commentContent);
+                    }
+                    return null;
+                })
+                .then(savedComment => {
+                    if (savedComment) {
+                        // 자동 댓글이 저장되었으면 목록 새로고침
+                        loadUpdates();
+                    }
+                })
+                .catch(err => {
+                    console.error('자동 댓글 생성 실패:', err);
+                    // 사용자에게 알리지 않음 (백그라운드 작업)
+                });
         }
         
         // 폼 초기화
@@ -1291,6 +1310,111 @@ function escapeHtml(text) {
 function isValidEmail(email) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
+}
+
+// 근황 내용을 텍스트로 포맷팅
+function formatUpdateContent(updateData) {
+    const parts = [];
+    
+    if (updateData.work_life) {
+        parts.push(`회사생활: ${updateData.work_life}`);
+    }
+    if (updateData.hobby_life) {
+        parts.push(`취미생활: ${updateData.hobby_life}`);
+    }
+    if (updateData.health_care) {
+        parts.push(`건강관리: ${updateData.health_care}`);
+    }
+    if (updateData.family_news) {
+        parts.push(`가족들 소식: ${updateData.family_news}`);
+    }
+    if (updateData.recent_interests) {
+        parts.push(`최근 관심사: ${updateData.recent_interests}`);
+    }
+    
+    return parts.join('\n');
+}
+
+// OpenAI를 사용한 자동 댓글 생성
+async function generateAutoComment(updateData) {
+    try {
+        // 근황 내용 포맷팅
+        const updateContent = formatUpdateContent(updateData);
+        
+        // 내용이 없으면 댓글 생성하지 않음
+        if (!updateContent || updateContent.trim() === '') {
+            console.log('근황 내용이 없어 자동 댓글을 생성하지 않습니다.');
+            return null;
+        }
+
+        // OpenAI API 호출 (fetch API 사용)
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${OPENAI_API_KEY}`
+            },
+            body: JSON.stringify({
+                model: 'gpt-4o',
+                messages: [
+                    {
+                        role: 'system',
+                        content: '당신은 모든 상황을 친절하게 잘 이해합니다. 배려깊은 마음으로 공감하고 답변은 존대말로 하세요.'
+                    },
+                    {
+                        role: 'user',
+                        content: updateContent
+                    }
+                ]
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const commentContent = data.choices[0]?.message?.content;
+        
+        if (!commentContent || commentContent.trim() === '') {
+            console.log('생성된 댓글 내용이 비어있습니다.');
+            return null;
+        }
+
+        return commentContent;
+    } catch (error) {
+        console.error('OpenAI 자동 댓글 생성 오류:', error);
+        // 오류가 발생해도 사용자에게 알리지 않음 (백그라운드 작업)
+        return null;
+    }
+}
+
+// 자동 댓글 저장
+async function saveAutoComment(updateId, commentContent) {
+    try {
+        // 자동 댓글 작성자 이름 (시스템 또는 AI)
+        const autoCommenterName = 'AI';
+        
+        const { data, error } = await supabase
+            .from('cat_comments')
+            .insert([{
+                update_id: updateId,
+                commenter_name: autoCommenterName,
+                content: commentContent
+            }])
+            .select();
+
+        if (error) {
+            throw error;
+        }
+
+        console.log('자동 댓글이 생성되었습니다.');
+        return data && data.length > 0 ? data[0] : null;
+    } catch (error) {
+        console.error('자동 댓글 저장 오류:', error);
+        return null;
+    }
 }
 
 // 근황 작성 시 이메일 알림 전송
