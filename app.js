@@ -1335,7 +1335,7 @@ function formatUpdateContent(updateData) {
     return parts.join('\n');
 }
 
-// OpenAI를 사용한 자동 댓글 생성
+// OpenAI를 사용한 자동 댓글 생성 (Supabase Edge Function 사용)
 async function generateAutoComment(updateData) {
     try {
         // 근황 내용 포맷팅
@@ -1347,35 +1347,25 @@ async function generateAutoComment(updateData) {
             return null;
         }
 
-        // OpenAI API 호출 (fetch API 사용)
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        // Supabase Edge Function 호출
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-auto-comment`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${OPENAI_API_KEY}`
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
             },
             body: JSON.stringify({
-                model: 'gpt-4o',
-                messages: [
-                    {
-                        role: 'system',
-                        content: '당신은 모든 상황을 친절하게 잘 이해합니다. 배려깊은 마음으로 공감하고 답변은 존대말로 하세요.'
-                    },
-                    {
-                        role: 'user',
-                        content: updateContent
-                    }
-                ]
+                updateContent: updateContent
             })
         });
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
+            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
-        const commentContent = data.choices[0]?.message?.content;
+        const commentContent = data.comment;
         
         if (!commentContent || commentContent.trim() === '') {
             console.log('생성된 댓글 내용이 비어있습니다.');
